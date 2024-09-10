@@ -3,10 +3,10 @@ Python based research tool for studying navigable graphs for nearest neighbour s
 
 Using the SIFT dataset:
 ```
-python kgraph_tool.py --dataset sift
+python navigable-graphs.py --dataset sift
 ```
 
 Using synthetic data with 3D vectors:
 ```
-python kgraph_tool.py --dataset synthetic --dim 3 --n 500 --nq 100
+python navigable-graphs.py --dataset synthetic --k 6 --dim 3 --n 500 --nq 100
 ```
