@@ -3,11 +3,11 @@
 
 import numpy as np
 import argparse
-import random
 from tqdm import tqdm
-from heapq import heappush
-import time
-
+# from tqdm import tqdm_notebook as tqdm
+from heapq import heappush, heappop
+import random
+random.seed(108)
 
 class KGraph(object): 
     def __init__(self, k, dim, dist_func, data):
@@ -17,16 +17,30 @@ class KGraph(object):
         self.count_brute_force_search = 0
         self.count_greedy_search = 0
         self.data = data
+        # build k-graph by brute force knn-search
         print('Building k-graph')
         self.edges = []
         for x in tqdm(self.data):
             self.edges.append(self.brute_force_knn_search(self.k+1, x)[1:])
         self.reset_counters()
 
-    def beam_search(self, q, k, eps, ef):
+    def beam_search(self, q, k, eps, ef, ax=None, marker_size=20, observed=False):
+        '''
+        q - query
+        k - number of closest neighbors to return
+        eps – entry points [vertex_id, ..., vertex_id]
+        ef – size of the beam
+        observed – if True returns the full of elements for which the distance were calculated
+        returns – a list of tuples [(vertex_id, distance), ... , ]
+        '''
+        # Priority queue: (negative distance, vertex_id)
         candidates = []
-        visited = set()
-        observed = dict()
+        visited = set()  # set of vertex used for extending the set of candidates
+        observed = dict() # dict: vertex_id -> float – set of vertexes for which the distance were calculated
+
+        if ax:
+            ax.scatter(x=q[0], y=q[1], s=marker_size, color='red', marker='^')
+            ax.annotate('query', (q[0], q[1]))
 
         # Initialize the queue with the entry points
         for ep in eps:
@@ -35,52 +49,78 @@ class KGraph(object):
             observed[ep] = dist
 
         while candidates:
+            # Get the closest vertex (furthest in the max-heap sense)
             dist, current_vertex = heappop(candidates)
 
-            observed_sorted = sorted(observed.items(), key=lambda a: a[1])
-            ef_largest = observed_sorted[min(len(observed)-1, ef-1)]
-            if ef_largest[1] < dist:
-                break
+            if ax:
+                ax.scatter(x=self.data[current_vertex][0], y=self.data[current_vertex][1], s=marker_size, color='red')
+                ax.annotate( len(visited), self.data[current_vertex] )
 
+            # check stop conditions #####
+            observed_sorted = sorted( observed.items(), key=lambda a: a[1] )
+            # print(observed_sorted)
+            ef_largets = observed_sorted[ min(len(observed)-1, ef-1 ) ]
+            # print(ef_largets[0], '<->', -dist)
+            if ef_largets[1] < dist:
+                break
+            #############################
+
+            # Add current_vertex to visited set
             visited.add(current_vertex)
 
+            # Check the neighbors of the current vertex
             for neighbor, _ in self.edges[current_vertex]:
                 if neighbor not in observed:
                     dist = self.distance_func(q, self.data[neighbor])                    
                     heappush(candidates, (dist, neighbor))
-                    observed[neighbor] = dist
-                    
-        observed_sorted = sorted(observed.items(), key=lambda a: a[1])
+                    observed[neighbor] = dist                    
+                    if ax:
+                        ax.scatter(x=self.data[neighbor][0], y=self.data[neighbor][1], s=marker_size, color='yellow')
+                        # ax.annotate(len(visited), (self.data[neighbor][0], self.data[neighbor][1]))
+                        ax.annotate(len(visited), self.data[neighbor])
+
+        # Sort the results by distance and return top-k
+        observed_sorted =sorted( observed.items(), key=lambda a: a[1] )
+        if observed:
+            return observed_sorted
         return observed_sorted[:k]
 
     def reset_counters(self):
         self.count_brute_force_search = 0
         self.count_greedy_search = 0
     
-    @staticmethod
     def l2_distance(a, b):
         return np.linalg.norm(a - b)
-
     def _vectorized_distance(self, x, ys):
         return [self.distance_func(x, y) for y in ys]
 
     def brute_force_knn_search(self, k, x):
-        self.count_brute_force_search += 1
+        '''
+        Return the list of (idx, dist) for k-closest elements to {x} in {data}
+        '''
+        self.count_brute_force_search = self.count_brute_force_search + 1
         return sorted(enumerate(self._vectorized_distance(x, self.data)), key=lambda a: a[1])[:k]
+
+    def plot_graph(self, ax, color, linewidth=0.5):        
+        ax.scatter(self.data[:, 0], self.data[:, 1], c=color)
+        for i in range(len(self.data)):
+            for edge_end in self.edges[i]:
+                ax.plot( [self.data[i][0], self.data[edge_end][0]], [self.data[i][1], self.data[edge_end][1]], c=color, linewidth=linewidth )
 
 
 def calculate_recall(kg, test, groundtruth, k, ef, M):
     if groundtruth is None:
         print("Ground truth not found. Calculating ground truth...")
-        groundtruth = [kg.brute_force_knn_search(k, query) for query in tqdm(test)]
+        groundtruth = [ [idx for idx, dist in kg.brute_force_knn_search(k, query)] for query in tqdm(test)]
 
     print("Calculating recall...")
     recalls = []
     for query, true_neighbors in tqdm(zip(test, groundtruth), total=len(test)):
         true_neighbors = true_neighbors[:k]  # Use only the top k ground truth neighbors
         entry_points = random.sample(range(len(kg.data)), M)
-        searched_neighbors = [neighbor for neighbor, dist in kg.beam_search(query, k, entry_points, ef)]
-        intersection = len(set(true_neighbors).intersection(set(searched_neighbors)))
+        results = [neighbor for neighbor, dist in kg.beam_search(query, k, entry_points, ef)]
+        intersection = len(set(true_neighbors).intersection(set(results)))
+        # print(f'true_neighbors: {true_neighbors}, results: {results}. Intersection: {intersection}')
         recall = intersection / k
         recalls.append(recall)
     
@@ -128,10 +168,11 @@ def generate_synthetic_data(dim, n, nq):
 def main():
     parser = argparse.ArgumentParser(description='Test recall of beam search method with KGraph.')
     parser.add_argument('--dataset', choices=['synthetic', 'sift'], default='synthetic', help="Choose the dataset to use: 'synthetic' or 'sift'.")
+    parser.add_argument('--K', type=int, default=5, help='The size of the neighbourhood')
     parser.add_argument('--dim', type=int, default=2, help='Dimensionality of synthetic data (ignored for SIFT).')
     parser.add_argument('--n', type=int, default=200, help='Number of training points for synthetic data (ignored for SIFT).')
     parser.add_argument('--nq', type=int, default=50, help='Number of query points for synthetic data (ignored for SIFT).')
-    parser.add_argument('--k', type=int, default=5, help='Number of nearest neighbors to search for.')
+    parser.add_argument('--k', type=int, default=5, help='Number of nearest neighbors to search in the test stage')
     parser.add_argument('--ef', type=int, default=10, help='Size of the beam for beam search.')
     parser.add_argument('--M', type=int, default=3, help='Number of random entry points.')
     
