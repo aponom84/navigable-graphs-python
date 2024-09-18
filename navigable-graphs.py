@@ -9,7 +9,7 @@ from heapq import heappush, heappop
 import random
 random.seed(108)
 
-class KGraph(object): 
+class KGraph(object):
     def __init__(self, k, dim, dist_func, data):
         self.distance_func = dist_func
         self.k = k
@@ -22,9 +22,11 @@ class KGraph(object):
         self.edges = []
         for x in tqdm(self.data):
             self.edges.append(self.brute_force_knn_search(self.k+1, x)[1:])
+
+        
         self.reset_counters()
 
-    def beam_search(self, q, k, eps, ef, ax=None, marker_size=20, observed=False):
+    def beam_search(self, q, k, eps, ef, ax=None, marker_size=20, return_observed=False):
         '''
         q - query
         k - number of closest neighbors to return
@@ -71,9 +73,9 @@ class KGraph(object):
             # Check the neighbors of the current vertex
             for neighbor, _ in self.edges[current_vertex]:
                 if neighbor not in observed:
-                    dist = self.distance_func(q, self.data[neighbor])                    
+                    dist = self.distance_func(q, self.data[neighbor])
                     heappush(candidates, (dist, neighbor))
-                    observed[neighbor] = dist                    
+                    observed[neighbor] = dist
                     if ax:
                         ax.scatter(x=self.data[neighbor][0], y=self.data[neighbor][1], s=marker_size, color='yellow')
                         # ax.annotate(len(visited), (self.data[neighbor][0], self.data[neighbor][1]))
@@ -81,14 +83,14 @@ class KGraph(object):
 
         # Sort the results by distance and return top-k
         observed_sorted =sorted( observed.items(), key=lambda a: a[1] )
-        if observed:
+        if return_observed:
             return observed_sorted
         return observed_sorted[:k]
 
     def reset_counters(self):
         self.count_brute_force_search = 0
         self.count_greedy_search = 0
-    
+
     def l2_distance(a, b):
         return np.linalg.norm(a - b)
     def _vectorized_distance(self, x, ys):
@@ -101,7 +103,7 @@ class KGraph(object):
         self.count_brute_force_search = self.count_brute_force_search + 1
         return sorted(enumerate(self._vectorized_distance(x, self.data)), key=lambda a: a[1])[:k]
 
-    def plot_graph(self, ax, color, linewidth=0.5):        
+    def plot_graph(self, ax, color, linewidth=0.5):
         ax.scatter(self.data[:, 0], self.data[:, 1], c=color)
         for i in range(len(self.data)):
             for edge_end in self.edges[i]:
@@ -115,16 +117,19 @@ def calculate_recall(kg, test, groundtruth, k, ef, M):
 
     print("Calculating recall...")
     recalls = []
+    total_calc = 0
     for query, true_neighbors in tqdm(zip(test, groundtruth), total=len(test)):
         true_neighbors = true_neighbors[:k]  # Use only the top k ground truth neighbors
         entry_points = random.sample(range(len(kg.data)), M)
-        results = [neighbor for neighbor, dist in kg.beam_search(query, k, entry_points, ef)]
+        observed = [neighbor for neighbor, dist in kg.beam_search(query, k, entry_points, ef, return_observed = True)]
+        total_calc = total_calc + len(observed)
+        results = observed[:k]
         intersection = len(set(true_neighbors).intersection(set(results)))
         # print(f'true_neighbors: {true_neighbors}, results: {results}. Intersection: {intersection}')
         recall = intersection / k
         recalls.append(recall)
-    
-    return np.mean(recalls)
+
+    return np.mean(recalls), total_calc/len(test)
 
 
 def read_fvecs(filename):
@@ -151,11 +156,11 @@ def load_sift_dataset():
     train_file = 'datasets/siftsmall/siftsmall_base.fvecs'
     test_file = 'datasets/siftsmall/siftsmall_query.fvecs'
     groundtruth_file = 'datasets/siftsmall/siftsmall_groundtruth.ivecs'
-    
+
     train_data = np.array(list(read_fvecs(train_file)))
     test_data = np.array(list(read_fvecs(test_file)))
     groundtruth_data = np.array(list(read_ivecs(groundtruth_file)))
-    
+
     return train_data, test_data, groundtruth_data
 
 
@@ -175,7 +180,7 @@ def main():
     parser.add_argument('--k', type=int, default=5, help='Number of nearest neighbors to search in the test stage')
     parser.add_argument('--ef', type=int, default=10, help='Size of the beam for beam search.')
     parser.add_argument('--M', type=int, default=3, help='Number of random entry points.')
-    
+
     args = parser.parse_args()
 
     # Load dataset
@@ -191,8 +196,8 @@ def main():
     kg = KGraph(k=args.k, dim=args.dim, dist_func=KGraph.l2_distance, data=train_data)
 
     # Calculate recall
-    recall = calculate_recall(kg, test_data, groundtruth_data, k=args.k, ef=args.ef, M=args.M)
-    print(f"Average recall: {recall}")
+    recall, avg_cal = calculate_recall(kg, test_data, groundtruth_data, k=args.k, ef=args.ef, M=args.M)
+    print(f"Average recall: {recall}, avg calc: {avg_cal}")
 
 
 if __name__ == "__main__":
