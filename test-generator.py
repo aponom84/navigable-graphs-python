@@ -66,10 +66,10 @@ def main():
         description='Synthetic data generator',
         epilog='''
 Example Usage:
-  python script.py --dim 128 --n 1000 --nq 100 --k 10 \\
+  python test-generator.py -dim 128 -n 1000 -nq 100 -k 10 \\
       -v train_vectors.txt \\
       -t query_vectors.txt \\
-      --gt groundtruth.txt
+      -gt groundtruth.txt
 
 This will generate:
   - 1000 training vectors with 128 dimensions and save them to train_vectors.txt
@@ -78,13 +78,13 @@ This will generate:
 ''',
         formatter_class=argparse.RawDescriptionHelpFormatter
     )
-    parser.add_argument('--dim', type=int, default=2, help='Dimensionality of synthetic data')
-    parser.add_argument('--n', type=int, default=200, help='Number of training points for synthetic data')
-    parser.add_argument('--nq', type=int, default=50, help='Number of query points for synthetic data')
-    parser.add_argument('--k', type=int, default=5, help='Number of nearest neighbors to search in the test stage')
+    parser.add_argument('-dim', type=int, default=2, help='Dimensionality of synthetic data')
+    parser.add_argument('-n', type=int, default=200, help='Number of training points for synthetic data')
+    parser.add_argument('-nq', type=int, default=50, help='Number of query points for synthetic data')
+    parser.add_argument('-k', type=int, default=5, help='Number of nearest neighbors to search in the test stage')
     parser.add_argument('-v', required=True, help='Path to vector file with the training vectors. Each vector stored in a single line as plain text')
     parser.add_argument('-t', required=True, help='Path to file with query vectors. Each vector stored in a single line as plain text')
-    parser.add_argument('--gt', required=True, help='Path to ground truth file. Line i stores indexes of k-nearest neighbors for query i')
+    parser.add_argument('-gt', required=True, help='Path to ground truth file. Line i stores indexes of k-nearest neighbors for query i')
 
     args = parser.parse_args()
 
