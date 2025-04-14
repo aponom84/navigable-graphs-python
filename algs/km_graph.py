@@ -2,29 +2,28 @@
 # coding: utf-8
 
 import numpy as np
-import argparse
 from tqdm import tqdm
 # from tqdm import tqdm_notebook as tqdm
 from heapq import heappush, heappop
 import random
 import itertools
+from algs.navigable_graph import NavigableGraph
 random.seed(108)
 
-
-class KGraph(object):
+class KMGraph(NavigableGraph):
     '''
-    One can create KGraph
-    ```
-    kg = KMGraph(k=args.K, dim=args.dim, dist_func=KGraph.l2_distance, data=train_data, M=args.M)
-    ```
+    K-Graph with m random edges
     '''
-    def __init__(self, k, dim, dist_func, data):
+    
+    def __init__(self, k, M, dim, dist_func, data):
+        super().__init__(edges=[], points=data)
         self.distance_func = dist_func
         self.k = k
         self.dim = dim
         self.count_brute_force_search = 0
         self.count_greedy_search = 0
         self.data = data
+        self.M = M # number of random edges
         # build k-graph by brute force knn-search
         print('Building k-graph')
         self.edges = []
@@ -32,7 +31,10 @@ class KGraph(object):
             self.edges.append(self.brute_force_knn_search(self.k+1, x)[1:])
 
 
-        self.reset_counters()
+        for s, t in random.sample( list(itertools.combinations(range(len(data)), 2)), M ):
+            self.edges[s].append( (t, dist_func(data[s], data[t]) ) )
+
+        # self.reset_counters()
 
     def beam_search(self, q, k, eps, ef, ax=None, marker_size=20, return_observed=False):
         '''
