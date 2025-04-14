@@ -7,10 +7,9 @@ from tqdm import tqdm
 # from tqdm import tqdm_notebook as tqdm
 from heapq import heappush, heappop
 import random
-import itertools
 random.seed(108)
-from hnsw import HNSW
-from hnsw import l2_distance, heuristic
+from algs.hnsw import HNSW
+from algs.hnsw import l2_distance, heuristic
 
 
 def brute_force_knn_search(distance_func, k, q, data):
