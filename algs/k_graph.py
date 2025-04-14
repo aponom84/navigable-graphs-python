@@ -26,7 +26,7 @@ class KGraph(NavigableGraph):
         self.count_greedy_search = 0
         self.data = data
         # build k-graph by brute force knn-search
-        print('Building k-graph')
+        print('Building K-graph. Params: k={}, dim={}'.format(k, dim))
         self.edges = []
         for x in tqdm(self.data):
             self.edges.append(self.brute_force_knn_search(self.k+1, x)[1:])
