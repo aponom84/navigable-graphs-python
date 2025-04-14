@@ -1,7 +1,5 @@
 #!python3
-import sys
 import numpy as np
-import time
 import random
 from math import log2
 from heapq import heapify, heappop, heappush, heapreplace, nlargest, nsmallest
