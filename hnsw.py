@@ -29,6 +29,17 @@ def k_closest(candidates: list, curr, k, distance_func, data):
     return sorted(candidates, key=lambda a: a[1])[:k]
     
 class HNSW:
+    '''
+    One can create HNSW graph by following code:
+    ```
+    HNSW( distance_func=l2_distance, m=args.M, m0=args.M0, ef=10, ef_construction=30,  neighborhood_construction = heuristic)
+
+    # Add data to HNSW
+    for x in tqdm(train_data):
+        hnsw.add(x)
+        
+    ```
+    '''
     # self._graphs[level][i] contains a {j: dist} dictionary,
     # where j is a neighbor of i and dist is distance
 
@@ -185,7 +196,7 @@ class HNSW:
         if return_observed:
             return observed_sorted
         return observed_sorted[:k]
-    def save_graph_plane(self, file_path):
+    def save_graph_plane(self, file_path):  
         with open(file_path, "w") as f:
             f.write(f'{len(self.data)}\n')
 
