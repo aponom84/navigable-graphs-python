@@ -8,6 +8,8 @@ import random
 import os
 from algs.navigable_graph import NavigableGraph
 from algs.k_graph import KGraph
+from algs.hnsw import HNSW, heuristic
+
 random.seed(108)
 
 def l2_distance(a, b):
@@ -117,7 +119,15 @@ def main():
 
     # graph = NavigableGraph(edge_list, )
     
-    graph = KGraph(k=32, dim=dim, dist_func=KGraph.l2_distance, data=data)
+    # graph = KGraph(k=64, dim=dim, dist_func=KGraph.l2_distance, data=data)
+
+    # Add data to HNSW
+    hnsw = HNSW( distance_func=l2_distance, m=32, m0=64, ef=10, ef_construction=5,  neighborhood_construction = heuristic)
+    print("Building HNSW graph...")
+    for x in tqdm(data):
+        hnsw.add(x)
+
+    graph = NavigableGraph(edges=hnsw.get_plane_graph(), points=data, distance_func=l2_distance)   
     
     # Calculate recall
     recall, avg_cal = calculate_recall(graph, queries, gt, k, ef=args.ef, m=10)
