@@ -18,7 +18,7 @@ class KGraph(NavigableGraph):
     ```
     '''
     def __init__(self, k, dim, dist_func, data):
-        super().__init__(edges=[], points=data)
+        super().__init__(edges=[], points=data, distance_func=dist_func)
         self.distance_func = dist_func
         self.k = k
         self.dim = dim

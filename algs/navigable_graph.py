@@ -2,7 +2,6 @@
 # coding: utf-8
 
 import numpy as np
-import argparse
 from tqdm import tqdm
 # from tqdm import tqdm_notebook as tqdm
 from heapq import heappush, heappop
@@ -12,9 +11,10 @@ random.seed(108)
 
 class NavigableGraph(object):
 
-    def __init__(self, edges, points):
+    def __init__(self, edges, points, distance_func):
         self.edges = edges
         self.data = points
+        self.distance_func = distance_func
 
     def beam_search(self, q, k, eps, ef, ax=None, marker_size=20, return_observed=False):
         '''
@@ -23,6 +23,7 @@ class NavigableGraph(object):
         eps – entry points [vertex_id, ..., vertex_id]
         ef – size of the beam
         observed – if True returns the full of elements for which the distance were calculated
+        ax - matplotlib figure to plot
         returns – a list of tuples [(vertex_id, distance), ... , ]
         '''
         # Priority queue: (negative distance, vertex_id)
