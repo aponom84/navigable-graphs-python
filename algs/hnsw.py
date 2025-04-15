@@ -194,7 +194,7 @@ class HNSW:
         if return_observed:
             return observed_sorted
         return observed_sorted[:k]
-    def save_graph_plane(self, file_path):  
+    def save_graph_plane(self, file_path):
         with open(file_path, "w") as f:
             f.write(f'{len(self.data)}\n')
 
@@ -207,6 +207,19 @@ class HNSW:
                     for dst, dist in neighborhood: 
                         f.write(f'{src} {dst}\n')
 
+    def get_plane_graph(self):
+        """
+        Returns a list of neighbors for each vertex in the HNSW graph.
+        
+        Returns:
+        list: A list of lists, where each inner list contains the neighbors of a vertex.
+        """
+        graph = [[] for _ in range(len(self.data))]
+        for graph_layer in self._graphs:
+            for src, neighborhood in graph_layer.items():
+                graph[src].extend(neighborhood)
+            
+        return graph
 
 
 # n = int(sys.argv[1]) # graph size
