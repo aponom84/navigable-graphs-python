@@ -8,12 +8,18 @@ import random
 import os
 from algs.navigable_graph import NavigableGraph
 from algs.k_graph import KGraph
-from algs.hnsw import HNSW, heuristic
+from algs.hnsw_fast import HNSW, heuristic
+import hnswlib
 
 random.seed(108)
 
+# def l2_distance(a, b):
+#         return np.linalg.norm(a - b)
+
+
 def l2_distance(a, b):
-        return np.linalg.norm(a - b)
+    diff = a - b
+    return diff.dot(diff)
 
 def calculate_recall(kg, test, groundtruth, k, ef, m):
     if groundtruth is None:
@@ -35,6 +41,55 @@ def calculate_recall(kg, test, groundtruth, k, ef, m):
         recalls.append(recall)
 
     return np.mean(recalls), total_calc/len(test)
+
+def calculate_recall_hnsw(index, queries, groundtruth, k, ef, m):
+    """
+    Calculate recall for HNSW-based approximate nearest neighbor search.
+
+    :param index: hnswlib.Index object, pre-built HNSW index.
+    :param queries: List of query vectors (each vector is a numpy array).
+    :param groundtruth: List of lists, where each sublist contains the indices of the true k-nearest neighbors.
+    :param k: Number of nearest neighbors to consider for recall calculation.
+    :param ef: Size of the dynamic candidate list during search (ef parameter for HNSW).
+    :param m: Number of random entry points for beam search (not directly used in hnswlib but kept for consistency).
+
+    :return: Tuple containing:
+        - Average recall (float): Mean recall across all queries.
+        - Average number of distance calculations per query (float).
+    """
+    if groundtruth is None:
+        raise ValueError("Ground truth must be provided for recall calculation.")
+
+    print("Calculating recall for HNSW...")
+    recalls = []
+    total_calculations = 0
+
+    # Set the ef parameter for the search phase
+    index.set_ef(ef)
+
+    for query, true_neighbors in tqdm(zip(queries, groundtruth), total=len(queries)):
+        # Extract only the top-k ground truth neighbors
+        true_neighbors = true_neighbors[:k]
+
+        # Perform approximate nearest neighbor search using HNSW
+        labels, distances = index.knn_query(query.reshape(1, -1), k=k)
+        observed = labels[0]  # Extract the indices of the nearest neighbors
+
+        # Count the number of distance calculations (approximated by the size of the candidate list)
+        total_calculations += ef
+
+        # Compute the intersection between true neighbors and observed neighbors
+        intersection = len(set(true_neighbors).intersection(set(observed)))
+
+        # Calculate recall for this query
+        recall = intersection / k
+        recalls.append(recall)
+
+    # Compute average recall and average number of distance calculations
+    avg_recall = np.mean(recalls)
+    avg_calculations = total_calculations / len(queries)
+
+    return avg_recall, avg_calculations
 
 def read_edge_list(file):
     """
@@ -131,6 +186,7 @@ def main():
     
     # Calculate recall
     recall, avg_cal = calculate_recall(graph, queries, gt, k, ef=args.ef, m=10)
+    # recall, avg_cal = calculate_recall_hnsw(index, queries, gt, k, ef=args.ef, m=10)
     print(f"Average recall: {recall}, avg calc: {avg_cal}")
 
 if __name__ == "__main__":
